@@ -283,3 +283,32 @@ class LivySession:
             raise RuntimeError("statement had no output")
 
         return statement.output
+
+    def _execute_async_start(self, code: str) -> int:
+        if self.session_id is None:
+            raise ValueError("session not yet started")
+
+        statement = self.client.create_statement(self.session_id, code)
+
+        return statement.statement_id
+
+    def _execute_async_check(self, statement_id: int) -> bool:
+        if self.session_id is None:
+            raise ValueError("session not yet started")
+
+        statement = self.client.get_statement(self.session_id, statement_id)
+
+        not_finished = statement.state in {
+            StatementState.WAITING,
+            StatementState.RUNNING,
+        }
+        available = statement.state == StatementState.AVAILABLE
+        return not_finished or (available and statement.output is None)
+
+    def _execute_async_finish(self, statement_id: int) -> Output:
+        if self.session_id is None:
+            raise ValueError("session not yet started")
+
+        statement = self.client.get_statement(self.session_id, statement_id)
+
+        return statement.output
